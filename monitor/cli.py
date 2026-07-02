@@ -47,12 +47,11 @@ def print_table(results):
         "ssl": 24,
     }
     if show_url:
-        seps = 3 * 5 # 5 separators at 3 chars each
         name_w = 20
-        fixed_total = sum(fixed.values()) + seps + name_w
+        fixed_total = sum(fixed.values()) + 3 * 5 + name_w
 
         # url gets whatever is left, minimum 10
-        url_w = max(tw - fixed_total -3, 10) # -3 for its own separator
+        url_w = max(tw - fixed_total - 3, 10) # -3 for its own separator
 
         col = {
             "status": fixed["status"],
@@ -63,8 +62,7 @@ def print_table(results):
             "ssl": fixed["ssl"],
         }
     else:
-        seps = 3 * 4
-        name_w = max(tw - sum(fixed.values()) - seps -1, 10)
+        name_w = max(tw - sum(fixed.values()) - 3 * 4 - 1, 10)
         col = {
             "status": fixed["status"],
             "name": name_w,
@@ -134,7 +132,7 @@ def print_table(results):
                 cell(term.cyan(res.name),               col["name"]) + sep +
                 cell(term.dim(trunc(res.url, url_w)),   col["url"]) + sep +
                 cell(code_str,                          col["code"]) + sep +
-                cell(f"{res.response_time_ms}ms",       col["rtime"]) + sep +
+                cell(f"{res.response_time_ms:.2f}ms",       col["rtime"]) + sep +
                 cell(ssl_str,                           col["ssl"])
             )
         else:
@@ -142,7 +140,7 @@ def print_table(results):
                 cell(status_str,                        col["status"]) + sep +
                 cell(term.cyan(trunc(res.name, name_w)),               col["name"]) + sep +
                 cell(code_str,                          col["code"]) + sep +
-                cell(f"{res.response_time_ms}ms",       col["rtime"]) + sep +
+                cell(f"{res.response_time_ms:.2f}ms",       col["rtime"]) + sep +
                 cell(ssl_str,                           col["ssl"])
             )
 
