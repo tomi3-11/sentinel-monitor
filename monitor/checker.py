@@ -93,7 +93,7 @@ if __name__ == "__main__":
     for res in results:
         status = "UP" if res.is_up else "DOWN"
         print(
-            f"{status} | {res.status_code} | {res.response_time_ms}ms | {res.name} ({res.url})"
+            f"{status} | {res.status_code} | {res.response_time_ms:.2f}ms | {res.name} ({res.url})"
         )
         if res.error_msg:
             print(f"    Error: {res.error_msg}")
