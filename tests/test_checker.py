@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from monitor.checker import check_uptime, run_all_checks, SiteResult
+from monitor.checker import SiteResult, check_uptime, run_all_checks
 from monitor.config import SiteConfig
 
 
@@ -130,13 +130,15 @@ async def test_run_all_checks_returns_all_results():
     mock_response = MagicMock()
     mock_response.status_code = 200
 
-    with patch("monitor.checker.get_ssl_expiry_days", return_value=90):
-        with patch(
+    with (
+        patch("monitor.checker.get_ssl_expiry_days", return_value=90),
+        patch(
             "httpx.AsyncClient.head",
             new_callable=AsyncMock,
             return_value=mock_response,
-        ):
-            results = await run_all_checks(sites, timeout=5)
+        ),
+    ):
+        results = await run_all_checks(sites, timeout=5)
 
     assert len(results) == 2
     assert all(isinstance(r, SiteResult) for r in results)

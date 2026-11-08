@@ -1,8 +1,9 @@
 import asyncio
-import httpx
 import time
 from dataclasses import dataclass
-from typing import List
+
+import httpx
+
 from monitor.config import SiteConfig, load_config
 from monitor.ssl_utils import get_ssl_expiry_days
 
@@ -99,7 +100,9 @@ async def check_uptime(client: httpx.AsyncClient, site: SiteConfig) -> SiteResul
     )
 
 
-async def run_all_checks(sites: List[SiteConfig], timeout: int) -> List[SiteResult]:
+async def run_all_checks(
+    sites: list[SiteConfig], timeout: int
+) -> list[SiteResult]:
     """
     Takes a list of sites and checks them all concurrently using an event loop.
     """
