@@ -1,8 +1,9 @@
 import asyncio
-import httpx
 import time
 from dataclasses import dataclass
-from typing import List
+
+import httpx
+
 from monitor.config import SiteConfig, load_config
 from monitor.ssl_utils import get_ssl_expiry_days
 
@@ -20,49 +21,88 @@ class SiteResult:
     error_msg: str = ""
 
 
-async def check_uptime(client: httpx.AsyncClient, site: SiteConfig) -> SiteResult:
-    """
-    Pings a single website asynchronously.
-    We use a HEAD request instead of GET to save bandwidth.
-    """
+async def _probe_http(
+    client: httpx.AsyncClient, site: SiteConfig
+) -> tuple[httpx.Response | None, float, httpx.RequestError | None]:
+    """Run the HTTP probe and retain its own response time and request error."""
     start_time = time.perf_counter()
-    ssl_task = asyncio.to_thread(get_ssl_expiry_days, site.url)
-    ssl_days = "Pending"
-    elapsed = 0.0
 
     try:
-        # A HEAD request asks the server for the headers only, not the full HTML body.
-        # This makes the check much faster and less taxing on the target server.
         response = await client.head(site.url, follow_redirects=True)
+    except httpx.RequestError as error:
         elapsed = (time.perf_counter() - start_time) * 1000
-        ssl_days = await ssl_task
+        return None, round(elapsed, 2), error
 
-        return SiteResult(
-            name=site.name,
-            url=site.url,
-            # Treat any 2xx or 3xx status code as "Up"
-            is_up=response.status_code < 400,
-            status_code=response.status_code,
-            response_time_ms=round(elapsed, 2),
-            ssl_days_left=ssl_days,
+    elapsed = (time.perf_counter() - start_time) * 1000
+    return response, round(elapsed, 2), None
+
+
+async def check_uptime(client: httpx.AsyncClient, site: SiteConfig) -> SiteResult:
+    """
+    Check HTTP reachability and SSL expiry concurrently for one site.
+
+    Each result is collected independently so an SSL inspection failure does
+    not discard a successful HTTP response, and an HTTP request failure does
+    not discard the SSL inspection result.
+    """
+    http_task = asyncio.create_task(_probe_http(client, site))
+    ssl_task = asyncio.create_task(asyncio.to_thread(get_ssl_expiry_days, site.url))
+
+    try:
+        http_result, ssl_result = await asyncio.gather(
+            http_task, ssl_task, return_exceptions=True
         )
-    except httpx.RequestError as e:
-        # Catches DNS failures, connection timeouts, etc.
-        elapsed = (time.perf_counter() - start_time) * 1000
-        ssl_days = await ssl_task
+    except asyncio.CancelledError:
+        # Cancel pending asyncio work before propagating caller cancellation.
+        http_task.cancel()
+        ssl_task.cancel()
+        await asyncio.gather(http_task, ssl_task, return_exceptions=True)
+        raise
 
+    # A task cancelled independently should still cancel the site check.
+    if isinstance(http_result, asyncio.CancelledError):
+        raise http_result
+    if isinstance(ssl_result, asyncio.CancelledError):
+        raise ssl_result
+
+    # Unexpected HTTP failures should not be misreported as ordinary outages.
+    if isinstance(http_result, BaseException):
+        raise http_result
+
+    response, elapsed, request_error = http_result
+
+    # SSL inspection is best-effort and independent from HTTP reachability.
+    if isinstance(ssl_result, Exception):
+        ssl_days: int | str = f"SSL check failed: {ssl_result}"
+    elif isinstance(ssl_result, BaseException):
+        raise ssl_result
+    else:
+        ssl_days = ssl_result
+
+    if request_error is not None:
         return SiteResult(
             name=site.name,
             url=site.url,
             is_up=False,
             status_code=0,
-            response_time_ms=round(elapsed, 2),
-            error_msg=str(e),
+            response_time_ms=elapsed,
+            error_msg=str(request_error),
             ssl_days_left=ssl_days,
         )
 
+    return SiteResult(
+        name=site.name,
+        url=site.url,
+        is_up=response.status_code < 400,
+        status_code=response.status_code,
+        response_time_ms=elapsed,
+        ssl_days_left=ssl_days,
+    )
 
-async def run_all_checks(sites: List[SiteConfig], timeout: int) -> List[SiteResult]:
+
+async def run_all_checks(
+    sites: list[SiteConfig], timeout: int
+) -> list[SiteResult]:
     """
     Takes a list of sites and checks them all concurrently using an event loop.
     """
