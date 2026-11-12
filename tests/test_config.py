@@ -1,5 +1,6 @@
 import pytest
-from monitor.config import load_config, AppConfig, SiteConfig
+
+from monitor.config import AppConfig, SiteConfig, load_config
 
 
 def test_load_valid_config(tmp_path):

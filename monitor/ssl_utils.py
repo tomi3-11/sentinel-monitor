@@ -1,6 +1,6 @@
-import ssl
 import socket
-from datetime import datetime, timezone
+import ssl
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 
@@ -30,14 +30,14 @@ def get_ssl_expiry_days(url: str, timeout: int = 5) -> int | str:
 
                 # Convert the string into UTC datetime object
                 expire_date = datetime.strptime(expire_date_str, "%b %d %H:%M:%S %Y %Z")
-                expire_date = expire_date.replace(tzinfo=timezone.utc)
+                expire_date = expire_date.replace(tzinfo=UTC)
                 # Calculate the days remaining
-                time_left = expire_date - datetime.now(timezone.utc)
+                time_left = expire_date - datetime.now(UTC)
                 return time_left.days
 
     except socket.gaierror:
         return "DNS Lookup Failed"
-    except socket.timeout:
+    except TimeoutError:
         return "Connection Time Out"
     except ssl.SSLError as e:
         return f"SSL Handshake Failed: {e}"

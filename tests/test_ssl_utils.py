@@ -1,6 +1,7 @@
 import socket
 import ssl
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from monitor.ssl_utils import get_ssl_expiry_days
 
 

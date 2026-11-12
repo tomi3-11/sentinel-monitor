@@ -1,11 +1,13 @@
 import argparse
 import asyncio
 import sys
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
+
 from blessed import Terminal
+
 from monitor.checker import run_all_checks
 from monitor.config import load_config
-from importlib.metadata import version, PackageNotFoundError
-from pathlib import Path
 
 term = Terminal()
 

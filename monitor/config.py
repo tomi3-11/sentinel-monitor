@@ -1,7 +1,7 @@
-import yaml
-from pathlib import Path
 from dataclasses import dataclass
-from typing import List, Optional
+from pathlib import Path
+
+import yaml
 
 
 @dataclass
@@ -16,9 +16,9 @@ class SiteConfig:
 class AppConfig:
     """Represents the global application configuration."""
 
-    sites: List[SiteConfig]
+    sites: list[SiteConfig]
     timeout: int = 5
-    webhook_url: Optional[str] = None
+    webhook_url: str | None = None
 
 
 def load_config(file_path: str = "targets.yaml") -> AppConfig:
