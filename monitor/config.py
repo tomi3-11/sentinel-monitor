@@ -74,5 +74,5 @@ if __name__ == "__main__":
         print(f"Successfully loaded {len(config.sites)} sites.")
         for site in config.sites:
             print(f"- {site.name}: {site.url}")
-    except Exception as e:
+    except (OSError, ValueError) as e:
         print(f"Error: {e}")

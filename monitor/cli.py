@@ -22,7 +22,7 @@ def init_config():
     if path.exists():
         print(term.yellow("targets.yaml already exists in this directory."))
         return
-    template = """\
+    template = """\\
 settings:
   timeout: 5
   alert_webhook: "" # to be implemented for real time alerts on discord/slack
@@ -209,7 +209,8 @@ def main():
         print(term.bold_red(f"Error: {e}"))
         sys.exit(1)
 
-    except Exception as e:
+    # Keep the CLI boundary user-friendly for unexpected runtime failures.
+    except Exception as e:  # noqa: BLE001
         print(term.bold_red(f"Fatal Error: {e}"))
         sys.exit(1)
 
