@@ -21,7 +21,8 @@ def get_ssl_expiry_days(url: str, timeout: int = 5) -> int | str:
             return "Invalid HTTPS URL"
 
         # Use the URL's explicit port, falling back to the HTTPS default.
-        port = parsed_url.port or 443
+        parsed_port = parsed_url.port
+        port = 443 if parsed_port is None else parsed_port
 
         context = ssl.create_default_context()
         with (
