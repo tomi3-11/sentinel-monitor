@@ -100,3 +100,16 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" \
             --generate-notes \
             --verify-tag
+
+  trigger-pypi-publish:
+    name: Trigger PyPI publishing workflow
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch PyPI publishing for this tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run publish.yaml --ref "${GITHUB_REF_NAME}"
