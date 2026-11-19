@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.5] - 2026-11-18
+
+### Fixed
+- Remove duplicate TLS validation errors from CLI output.
+- Distinguish HTTP reachability failures from HTTP error responses.
+
+### Improved
+- Display one uninterrupted status row per monitored site.
+- Move request, TLS validation, and SSL metadata errors into a
+  separate Diagnostics section grouped by site.
+- Omit the Diagnostics section when no diagnostics are present.
+
 ## [0.1.4] - 2026-11-15
 
 ### Added
