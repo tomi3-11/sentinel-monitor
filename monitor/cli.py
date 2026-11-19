@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import os
 import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -201,8 +202,11 @@ def main():
     parser.add_argument(
         "-c",
         "--config",
-        default="targets.yaml",
-        help="Path to the configuration file",
+        default=None,
+        help=(
+            "Path to the configuration file. Overrides the SENTINEL_CONFIG "
+            "environment variable. Defaults to targets.yaml."
+        ),
     )
 
     parser.add_argument(
@@ -213,15 +217,18 @@ def main():
 
     args = parser.parse_args()
 
+    # Precedence: --config flag, then SENTINEL_CONFIG, then ./targets.yaml.
+    config_path = args.config or os.getenv("SENTINEL_CONFIG") or "targets.yaml"
+
     if args.command == "init":
         init_config()
         return
 
     try:
         # Load the configurations
-        app_config = load_config(args.config)
+        app_config = load_config(config_path)
 
-        print(f"[*] Loaded {len(app_config.sites)} sites from {args.config}...")
+        print(f"[*] Loaded {len(app_config.sites)} sites from {config_path}...")
 
         # Run the asynchronous checks
         print(term.bold_green("Probing network targets concurrently..."))

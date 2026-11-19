@@ -69,6 +69,13 @@ Point to a specific config file:
 sentinel -c /path/to/targets.yaml
 ```
 
+Or set a default once with the `SENTINEL_CONFIG` environment variable. The `-c` flag still takes priority, and `targets.yaml` in the current directory is used when neither is set:
+
+```bash
+export SENTINEL_CONFIG=~/.config/sentinel/targets.yaml
+sentinel
+```
+
 Check version:
 
 ```bash

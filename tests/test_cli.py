@@ -5,6 +5,7 @@ import pytest
 from monitor import cli
 from monitor.checker import SiteResult
 from monitor.cli import init_config, print_table
+from monitor.config import AppConfig, SiteConfig
 
 
 @pytest.mark.parametrize("flag", ["--help", "--version"])
@@ -30,6 +31,62 @@ def test_information_flags_exit_without_monitoring(flag, tmp_path, monkeypatch, 
         assert "usage: sentinel" in output.out
         assert "--config" in output.out
         assert "--version" in output.out
+
+
+def _run_main_capturing_config_path(monkeypatch, argv):
+    """Run main() with the checks stubbed out and return the config path it loaded."""
+    loaded = []
+
+    def fake_load_config(path):
+        loaded.append(path)
+        return AppConfig(sites=[SiteConfig(name="Example", url="https://example.com")])
+
+    async def fake_run_all_checks(sites, timeout):
+        return []
+
+    monkeypatch.setattr(sys, "argv", argv)
+    monkeypatch.setattr(cli, "load_config", fake_load_config)
+    monkeypatch.setattr(cli, "run_all_checks", fake_run_all_checks)
+    monkeypatch.setattr(cli, "print_table", lambda results: None)
+
+    cli.main()
+
+    assert len(loaded) == 1
+    return loaded[0]
+
+
+def test_config_defaults_to_targets_yaml(monkeypatch):
+    """Without a flag or SENTINEL_CONFIG, the config is ./targets.yaml."""
+    monkeypatch.delenv("SENTINEL_CONFIG", raising=False)
+
+    assert _run_main_capturing_config_path(monkeypatch, ["sentinel"]) == "targets.yaml"
+
+
+def test_config_uses_sentinel_config_env_var(monkeypatch):
+    """SENTINEL_CONFIG is used when -c is not passed."""
+    monkeypatch.setenv("SENTINEL_CONFIG", "/etc/sentinel/targets.yaml")
+
+    path = _run_main_capturing_config_path(monkeypatch, ["sentinel"])
+
+    assert path == "/etc/sentinel/targets.yaml"
+
+
+def test_config_flag_overrides_sentinel_config_env_var(monkeypatch):
+    """-c / --config always wins over SENTINEL_CONFIG."""
+    monkeypatch.setenv("SENTINEL_CONFIG", "/etc/sentinel/targets.yaml")
+
+    path = _run_main_capturing_config_path(
+        monkeypatch, ["sentinel", "-c", "/other/targets.yaml"]
+    )
+
+    assert path == "/other/targets.yaml"
+
+
+def test_empty_sentinel_config_env_var_is_ignored(monkeypatch):
+    """An empty SENTINEL_CONFIG falls back to the default path."""
+    monkeypatch.setenv("SENTINEL_CONFIG", "")
+
+    assert _run_main_capturing_config_path(monkeypatch, ["sentinel"]) == "targets.yaml"
 
 
 def test_init_creates_file(tmp_path, monkeypatch):
