@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and community support
+    url: https://github.com/tomi3-11/sentinel-monitor/discussions
+    about: Ask usage and development questions in GitHub Discussions.
+  - name: Security vulnerability
+    url: https://github.com/tomi3-11/sentinel-monitor/security
+    about: Report vulnerabilities privately. Do not open a public issue.
