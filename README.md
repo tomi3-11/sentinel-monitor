@@ -22,20 +22,20 @@ A fast, minimal CLI tool to monitor website uptime and SSL certificate health co
 
 Managing multiple projects means keeping track of domain health and SSL expiration dates manually — which is tedious and easy to miss. Sentinel gives you an instant, locally executable snapshot of your web services without the overhead of a heavy monitoring stack or an external SaaS dependency.
 
----
-
 ## Key Features
 
-- **Concurrent checks** — all sites are probed simultaneously using async I/O, not one by one
-- **SSL health tracking** — extracts certificate expiry directly via raw TCP sockets, no third-party APIs
-- **Responsive terminal UI** — color-coded output that adapts to your terminal width
-- **Declarative config** — define all your targets in a single YAML file
-- **Independent health signals** — network reachability, HTTP status, and TLS certificate validity are reported separately
-- **Graceful error handling** — DNS failures, timeouts, and connection drops are caught and reported per site without crashing
+- **Concurrent checks** — sites are probed concurrently using async I/O.
+- **SSL health tracking** — retrieves certificate expiry metadata using TLS connections and X.509 parsing.
+- **Responsive terminal UI** — color-coded output that adapts to terminal width.
+- **Declarative configuration** — define monitoring targets in a YAML file.
+- **Independent health signals** — HTTP reachability, HTTP status, certificate metadata, and TLS validation are reported separately.
+- **Per-site error handling** — DNS failures, timeouts, and connection errors are reported without stopping checks for other sites.
 
 ---
 
 ## Installation
+
+With pip:
 
 ```bash
 pip install sentinel-monitor
@@ -47,11 +47,9 @@ Or with uv:
 uv tool install sentinel-monitor
 ```
 
----
-
 ## Quick Start
 
-Generate a starter config in your current directory:
+Generate a starter configuration in the current directory:
 
 ```bash
 sentinel init
@@ -63,24 +61,26 @@ Run the monitor:
 sentinel
 ```
 
-Point to a specific config file:
+Select a configuration file explicitly:
 
 ```bash
-sentinel -c /path/to/targets.yaml
+sentinel --config /path/to/targets.yaml
 ```
 
-Or set a default once with the `SENTINEL_CONFIG` environment variable. The `-c` flag still takes priority, and `targets.yaml` in the current directory is used when neither is set:
+Or set a default with the `SENTINEL_CONFIG` environment variable. The command-line option takes precedence:
 
 ```bash
-export SENTINEL_CONFIG=~/.config/sentinel/targets.yaml
+export SENTINEL_CONFIG="$HOME/.config/sentinel/targets.yaml"
 sentinel
 ```
 
-Check version:
+Check the installed version:
 
 ```bash
 sentinel --version
 ```
+
+**Current limitation:** `sentinel init` creates `targets.yaml` in the current directory. It does not yet honor `--config` or `SENTINEL_CONFIG` when choosing where to write the starter file.
 
 ---
 
@@ -89,7 +89,7 @@ sentinel --version
 ```yaml
 settings:
   timeout: 5
-  alert_webhook: ""  # optional: Discord/Slack webhook URL
+  alert_webhook: ""
 
 sites:
   - name: "Google"
@@ -98,44 +98,58 @@ sites:
     url: "https://api.example.com"
 ```
 
----
+- `settings.timeout` sets the HTTP client timeout in seconds; the default is 5.
+- `sites` contains the endpoints to monitor. Each entry needs a `url`; `name` is optional and defaults to `Unknown Site`.
+- `settings.alert_webhook` is reserved configuration only. Webhook notifications are not implemented yet.
+
+See the [Configuration Guide](docs/configuration.md) for file selection, supported fields, and current limitations.
+
+Configuration validation is still being improved; not every malformed YAML structure is currently rejected with a friendly error.
 
 ## How It Works
 
-Sentinel is built around three components:
+Sentinel loads the YAML configuration, then runs an HTTP probe and TLS certificate inspection for each configured site.
 
-**Configuration Manager** — parses `targets.yaml` into typed dataclasses, validates structure, and raises actionable errors on bad input.
+- **HTTP probe:** sends an asynchronous HTTP `HEAD` request using `httpx`.
+- **TLS inspection:** opens a TLS connection to retrieve certificate metadata. Inspection runs in a worker thread so it does not block the asyncio event loop.
+- **Independent results:** an HTTP response proves reachability, while an HTTP status of 400 or higher is reported as an HTTP error. TLS certificate validity is reported separately from certificate expiry metadata.
 
-**Concurrency Engine** — an `asyncio` event loop dispatches all HTTP checks simultaneously via `httpx`. Sites are never checked sequentially.
-
-**Network Probes** — two probe types run per site:
-- *Uptime probe:* async HTTP `HEAD` request — minimal bandwidth, no body fetched
-- *SSL probe:* raw TCP socket wrapped with `ssl.SSLContext` to extract and parse X.509 certificate metadata, runs in a background thread via `asyncio.to_thread` to avoid blocking the event loop
-
----
-
-## Development Setup
-
-```bash
-git clone https://github.com/tomi3-11/sentinel-monitor.git
-cd sentinel-monitor
-uv venv && source .venv/bin/activate
-uv sync
-sentinel -c targets.yaml
-```
+For module responsibilities and execution flow, see [Architecture](docs/architecture.md).
 
 ---
 
 ## Docker
 
+Build the image:
+
 ```bash
-docker build -t monitor .
-docker run -t monitor sentinel -c targets.yaml
+docker build -t sentinel-monitor .
 ```
+
+Run with a configuration file from the current host directory:
+
+```bash
+docker run --rm -t \
+  -v "$PWD/targets.yaml:/config/targets.yaml:ro" \
+  sentinel-monitor sentinel --config /config/targets.yaml
+```
+
+The image's default command explicitly selects `targets.yaml`. When using a mounted custom path, override the command as shown so the selected path is passed to Sentinel.
 
 ---
 
+## Contributing
+
+Contributions, bug reports, and thoughtful feature proposals are welcome. Start with:
+
+- [Contributing Guide](CONTRIBUTING.md) — setup, branch workflow, tests, and pull requests.
+- [Development Guide](docs/development.md) — environment, dependencies, tests, and linting.
+- [Code of Conduct](CODE_OF_CONDUCT.md) — community expectations.
+- [Support](SUPPORT.md) — where to ask questions and report problems.
+- [Security Policy](SECURITY.md) — how to report vulnerabilities privately.
+
+Browse [open issues](https://github.com/tomi3-11/sentinel-monitor/issues) for work in progress and contribution opportunities.
+
 ## License
 
-MIT
-
+MIT. See [LICENSE](LICENSE).
